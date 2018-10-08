@@ -11,7 +11,9 @@ df <- data.frame()
 
 for (b in c(14,15,16,17,18)){
     
+
     x <- sprintf("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/Bus_20%s.xlsx",b)
+
     
     y <- excel_sheets(x)
     
@@ -28,7 +30,9 @@ for (b in c(14,15,16,17,18)){
     
 }
 
+
 write.csv(df,"D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv")
+
 
 #library(readxl)
 #library(stringr)
