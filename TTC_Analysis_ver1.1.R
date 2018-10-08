@@ -34,18 +34,13 @@ for (b in c(14,15,16,17,18)){
 write.csv(df,"D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv")
 
 
-library(readxl)
-library(stringr)
-library(ggplot2)
-
-
-df <- read.csv("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv", header = TRUE, stringsAsFactors = FALSE, sep = ",")
+#df <- read.csv("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv", header = TRUE, stringsAsFactors = FALSE, sep = ",")
 
 head(df)
 
 df$Incident <- as.factor(df$Incident)
 
-df$day <- as.factor(df$day)
+df$Day <- as.factor(df$Day)
 
 class(df$Incident)
 
