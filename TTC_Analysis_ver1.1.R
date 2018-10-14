@@ -157,3 +157,16 @@ summary(location3)
 quantile(location3$incident, probs = .995)
 
 length(location3$incident[location3$incident > 1000])
+
+x1 <- c(50 < df3$route)
+
+df95 <- df3[50 < df3$route & df3$route < 70,]
+
+
+s <- ggplot(df95, aes(x = route, fill = incident, label = incident))
+s+ geom_bar(position = "fill",width = .5)+coord_flip()
+
+t <- ggplot(df95, aes(x = route, fill = incident))
+t+ geom_bar(position = "fill",width = .5)+coord_flip()+theme(legend.position = "top")
+
+# +scale_fill_manual(values = c("Diversion","Emergency","General","Investigation","Late","Mechanical","Utilized Off Route"))
