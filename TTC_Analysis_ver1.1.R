@@ -34,7 +34,7 @@ for (b in c(14,15,16,17,18)){
 write.csv(df,"D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv")
 
 
-#df <- read.csv("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv", header = TRUE, stringsAsFactors = FALSE, sep = ",")
+delay <- read.csv("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv", header = TRUE, stringsAsFactors = FALSE, sep = ",")
 
 head(df)
 
@@ -44,9 +44,9 @@ df$Day <- as.factor(df$Day)
 
 class(df$Incident)
 
-class(df)
+class(df$day)
 
-summary(df)
+summary(df$incident)
 
 names(df) <- c("date","route","time","day","location","incident","delay","gap","direction","vehicle")
 
@@ -66,6 +66,8 @@ aggregate(delay ~ incident, data = df3, mean)
 aggregate(delay ~ incident, data = df3, var)
 
 ggplot(df3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
+
+ggplot(df3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
 
 delay.lm <- lm(delay ~ incident, data = df3)
 summary(delay.lm)
@@ -131,7 +133,7 @@ season <- function(x){
            "06"="Spring",
            "07"="Summer",
            "08"="Summer",
-           "09"="Summer",
+           "09"="Fall",
            "10"="Fall",
            "11"="Fall",
            "12"="Winter"
@@ -141,9 +143,9 @@ season <- function(x){
 season2 <- sapply(month2, season)
 df6 <- data.frame(df5,season2)
 
-ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season2)
+ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season2)+theme(legend.position = "top")
 
-ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season2+year2)
+ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~year2+season2)
 
 
 df5$location <- as.factor(df5$location)
@@ -170,3 +172,63 @@ t <- ggplot(df95, aes(x = route, fill = incident))
 t+ geom_bar(position = "fill",width = .5)+coord_flip()+theme(legend.position = "top")
 
 # +scale_fill_manual(values = c("Diversion","Emergency","General","Investigation","Late","Mechanical","Utilized Off Route"))
+
+
+
+sum(!is.na(delay$route))
+
+df6$day <- as.character(df6$day)
+
+delay <- delay[which(delay$delay < 60),]
+
+class(delay$day)
+    
+index <- sample(length(delay$route), .7 *length(delay$route))
+
+train <- delay[index,]
+test <- delay[-index,]
+
+
+
+delay_Multi <- lm(delay ~ location+day+incident+direction+vehicle, data = train)
+
+delay_Multi <- lm(delay ~ incident-1, data = train)
+
+summary(delay_Multi)
+
+
+
+delay_Multi_pred <- predict(delay_Multi, newdata = test, interval = "prediction")
+
+pred <- data.frame(delay_Multi_pred)
+
+
+error_Multi_pred <- pred$fit - test$delay
+
+error <- data.frame(error_Multi_pred)
+head(error)
+
+hist(error_Multi_pred)
+
+ggplot(error,aes(x=error_Multi_pred))+geom_histogram(binwidth = 1,alpha=3/4)
+
+summary(error_Multi_pred)
+
+mse_Multi <- sqrt(sum((error_Multi_pred)^2)/nrow(test))
+
+mse_Multi
+
+relative_error <- 1- ((test$delay - abs(error_Multi_pred))/test$delay)
+relative_error
+relative_error_less25 <- table(relative_error < .25)["TRUE"]/nrow(test)
+relative_error_less25_pct <- paste("relative_error_less 25% is ",100*relative_error_less25)
+relative_error_less25_pct
+
+
+
+
+
+
+
+
+
