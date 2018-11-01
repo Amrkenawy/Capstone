@@ -179,46 +179,46 @@ sum(!is.na(delay$route))
 
 df6$day <- as.character(df6$day)
 
-delay <- delay[which(delay$delay < 60),]
+delay.df <- df6[df6$delay < 60,]
 
-class(delay$day)
+class(delay.df$day)
     
-index <- sample(length(delay$route), .7 *length(delay$route))
+index <- sample(length(delay.df$route), .7 *length(delay.df$route))
 
-train <- delay[index,]
-test <- delay[-index,]
+train <- delay.df[index,]
+test <- delay.df[-index,]
 
 
 
 delay_Multi <- lm(delay ~ location+day+incident+direction+vehicle, data = train)
 
-delay_Multi <- lm(delay ~ incident-1, data = train)
+delay_single <- lm(delay ~ incident-1, data = train)
 
-summary(delay_Multi)
-
-
-
-delay_Multi_pred <- predict(delay_Multi, newdata = test, interval = "prediction")
-
-pred <- data.frame(delay_Multi_pred)
+summary(delay_single)
 
 
-error_Multi_pred <- pred$fit - test$delay
 
-error <- data.frame(error_Multi_pred)
+delay_pred <- predict(delay_single, newdata = test, interval = "prediction")
+
+pred <- data.frame(delay_pred)
+
+
+error_pred <- pred$fit - test$delay
+
+error <- data.frame(error_pred)
 head(error)
 
-hist(error_Multi_pred)
+hist(error_pred)
 
-ggplot(error,aes(x=error_Multi_pred))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(error,aes(x=error_pred))+geom_histogram(binwidth = 1,alpha=3/4)
 
-summary(error_Multi_pred)
+summary(error_pred)
 
-mse_Multi <- sqrt(sum((error_Multi_pred)^2)/nrow(test))
+mse_single <- sqrt(sum((error_pred)^2)/nrow(test))
 
-mse_Multi
+mse_single
 
-relative_error <- 1- ((test$delay - abs(error_Multi_pred))/test$delay)
+relative_error <- 1- ((test$delay - abs(error_pred))/test$delay)
 relative_error
 relative_error_less25 <- table(relative_error < .25)["TRUE"]/nrow(test)
 relative_error_less25_pct <- paste("relative_error_less 25% is ",100*relative_error_less25)
@@ -227,8 +227,94 @@ relative_error_less25_pct
 
 
 
+Mechanical_mean <- mean(df3$delay[df3$incident == "Mechanical"])
+
+Mechanical_mean
+
+Mechanical_sd <- sd(df3$delay[df3$incident == "Mechanical"])
+
+Mechanical_var <- var(df3$delay[df3$incident == "Mechanical"])
+
+
+
+Population_mean <- mean(df3$delay)
+
+Population_mean
+
+Population_sd <- sd(df3$delay)
+
+Population_sd
+
+Population_var <- var(df3$delay)
+
+Population_var
+
+n <- length(df3$delay[df3$incident == "Mechanical"])
+
+n
+
+z <- (Mechanical_mean - Population_mean)/(Population_sd/sqrt(n))
+
+z
+
+z1 <- (Mechanical_mean - Population_mean)/(Mechanical_sd/sqrt(n))
+
+p_value <- pnorm(z)
+
+p_value
+
+
+# side by side histograms of whole delays and delays due to Mechanical reasons
+
+ggplot(df3, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
+
+
+df3_mechanical <- df3[df3$incident == "Mechanical",]
+
+ggplot(df3_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
 
 
 
 
 
+
+
+
+
+Late_mean <- mean(df3$delay[df3$incident == "Investigation"])
+
+
+Delay_mean <- mean(df3$delay)
+
+Delay_sd <- sd(df3$delay)
+
+n1 <- length(df3$delay[df3$incident == "Investigation"])
+
+
+
+#Pearson correlation test between Delay and Gap
+
+
+cor.test(df3$delay,df3$gap, method = "pearson")
+
+
+delay_Multi <- lm(delay ~ incident-1+gap, data = train)
+
+summary(delay_Multi)
+
+
+
+delay_pred <- predict(delay_Multi, newdata = test, interval = "prediction")
+
+pred_Multi <- data.frame(delay_pred)
+
+error_pred_multi <- pred_Multi$fit - test$delay
+
+error_multi <- data.frame(error_pred_multi)
+head(error_multi)
+
+hist(error_pred_multi)
+
+ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 1,alpha=3/4)
+
+summary(error_pred_multi)
