@@ -3,6 +3,7 @@
 library(readxl)
 library(stringr)
 library(ggplot2)
+require(coefplot)
 
 
 # Create one dataframe for the entire worksheet
@@ -31,96 +32,119 @@ for (b in c(14,15,16,17,18)){
 }
 
 
-write.csv(df,"D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv")
+# Store Combined file in one CSV file
 
+# write.csv(df,"D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv")
+
+# Load the combined file
 
 delay <- read.csv("D:/DataAnalytics/CKME_136/TTC_Bus_Delay/Capstone/combined.csv", header = TRUE, stringsAsFactors = FALSE, sep = ",")
 
-head(df)
+head(delay)
 
-df$Incident <- as.factor(df$Incident)
+delay$Incident <- as.factor(delay$Incident)
 
-df$Day <- as.factor(df$Day)
+delay$Day <- as.factor(delay$Day)
 
-class(df$Incident)
+class(delay$Incident)
 
-class(df$day)
+class(delay$Day)
 
-summary(df$incident)
+summary(delay$Incident)
 
-names(df) <- c("date","route","time","day","location","incident","delay","gap","direction","vehicle")
+# Data Cleaning
 
+# Renaming the columns
 
-df2 <- df[which(!is.na(df$delay)),]
-
-
-ggplot(df2,aes(y=delay,x=incident))+geom_boxplot()
-
-df3 <- df2[which(df2$delay < 60),]
-
-ggplot(df3,aes(y=delay,x=incident))+geom_boxplot()
+names(delay) <- c("SrNo","date","route","time","day","location","incident","delay","gap","direction","vehicle")
 
 
-aggregate(delay ~ incident, data = df3, mean)
+# removing "NAs"
 
-aggregate(delay ~ incident, data = df3, var)
-
-ggplot(df3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
-
-ggplot(df3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
-
-delay.lm <- lm(delay ~ incident, data = df3)
-summary(delay.lm)
+delay2 <- delay[which(!is.na(delay$delay)),]
 
 
-delay.lm2 <- lm(delay ~ incident-1, data = df3)
-summary(delay.lm2)
+ggplot(delay2,aes(y=delay,x=incident))+geom_boxplot()
 
-require(coefplot)
-coefplot(delay.lm)
+# removing outliers
+
+delay3 <- delay2[which(delay2$delay < 60 & delay2$delay > 0 ),]
+
+head(delay3)
+
+class(delay3$date)
+
+delay3$date <- as.Date(delay3$date, format = "%m/%d/%Y")
+
+ggplot(delay3,aes(y=delay,x=incident))+geom_boxplot()
 
 
-coefplot(delay.lm2)
+aggregate(delay ~ incident, data = delay3, mean)
 
-delay.lm3 <- lm(delay ~ incident * day, data = df3)
-summary(delay.lm3)
+aggregate(delay ~ incident, data = delay3, var)
 
-coefplot(delay.lm3)
-multiplot(delay.lm2,delay.lm3)
+ggplot(delay3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
 
-month2 <- str_sub(df3$date,start = 6, end = 7)
+ggplot(delay3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
 
-mon.name <- function(x){
+# Analysis of Variance "ANOVA" using linear regression coefficient
+
+delay3.lm <- lm(delay ~ incident, data = delay3)
+summary(delay3.lm)
+
+
+delay3.lm2 <- lm(delay ~ incident-1, data = delay3)
+summary(delay3.lm2)
+
+# Plot linear regression coefficient
+
+coefplot(delay3.lm)
+
+
+coefplot(delay3.lm2)
+
+# Consider the interaction with the day of incident
+
+delay3.lm3 <- lm(delay ~ incident * day, data = delay3)
+summary(delay3.lm3)
+
+coefplot(delay3.lm3)
+
+# Studying monthly distribution of the delay
+
+month.col <- str_sub(delay3$date,start = 6, end = 7)
+
+month.name <- function(x){
     
     switch(x,
-           "01"="Jan",
-           "02"="Feb",
-           "03"="Mar",
-           "04"="Apr",
-           "05"="May",
-           "06"="Jun",
-           "07"="Jul",
-           "08"="Aug",
-           "09"="Sep",
-           "10"="Oct",
-           "11"="Nov",
-           "12"="Dec"
+           "01"="01Jan",
+           "02"="02Feb",
+           "03"="03Mar",
+           "04"="04Apr",
+           "05"="05May",
+           "06"="06Jun",
+           "07"="07Jul",
+           "08"="08Aug",
+           "09"="09Sep",
+           "10"="10Oct",
+           "11"="11Nov",
+           "12"="12Dec"
            )
     
 }
 
-month3 <- sapply(month2, mon.name)
+month.names <- sapply(month.col, month.name)
 
-df4 <- data.frame(df3,month2)
+delay4 <- data.frame(delay3,month.names)
 
-ggplot(df4, aes(x= delay,fill=month2))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~month2)
+ggplot(delay4, aes(x= delay,fill=month.names))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~month.names)
 
 
-year2 <- str_sub(df4$date,start = 1, end = 4)
+yearly <- str_sub(delay4$date,start = 1, end = 4)
 
-df5 <- data.frame(df4,year2)
+delay5 <- data.frame(delay4,yearly)
 
-ggplot(df5, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~year2)
+ggplot(delay5, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~yearly)
 
 season <- function(x){
     
@@ -140,19 +164,22 @@ season <- function(x){
     )
     
 }
-season2 <- sapply(month2, season)
-df6 <- data.frame(df5,season2)
+season.names <- sapply(month.col, season)
 
-ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season2)+theme(legend.position = "top")
+delay6 <- data.frame(delay5,season.names)
 
-ggplot(df6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~year2+season2)
+ggplot(delay6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season.names)+theme(legend.position = "top")
+
+ggplot(delay6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~yearly+season.names)
 
 
-df5$location <- as.factor(df5$location)
+# Analyze Incidents per location
 
-levels(df5$location)
+delay6$location <- as.factor(delay6$location)
 
-location2 <- aggregate(incident ~ location, df5 ,length)
+levels(delay6$location)
+
+location2 <- aggregate(incident ~ location, delay6 ,length)
 location3 <- location2[order(-location2$incident),]
 summary(location3)
 
@@ -160,37 +187,31 @@ quantile(location3$incident, probs = .995)
 
 length(location3$incident[location3$incident > 1000])
 
-x1 <- c(50 < df3$route)
+#x1 <- c(50 < df3$route)
 
-df95 <- df3[50 < df3$route & df3$route < 70,]
+#df95 <- df3[50 < df3$route & df3$route < 70,]
 
 
-s <- ggplot(df95, aes(x = route, fill = incident, label = incident))
-s+ geom_bar(position = "fill",width = .5)+coord_flip()
+#s <- ggplot(df95, aes(x = route, fill = incident, label = incident))
+#s+ geom_bar(position = "fill",width = .5)+coord_flip()
 
-t <- ggplot(df95, aes(x = route, fill = incident))
-t+ geom_bar(position = "fill",width = .5)+coord_flip()+theme(legend.position = "top")
+#t <- ggplot(df95, aes(x = route, fill = incident))
+#t+ geom_bar(position = "fill",width = .5)+coord_flip()+theme(legend.position = "top")
 
 # +scale_fill_manual(values = c("Diversion","Emergency","General","Investigation","Late","Mechanical","Utilized Off Route"))
 
+# Create a prediction model for the delay through linear regression
 
 
-sum(!is.na(delay$route))
-
-df6$day <- as.character(df6$day)
-
-delay.df <- df6[df6$delay < 60,]
-
-class(delay.df$day)
     
-index <- sample(length(delay.df$route), .7 *length(delay.df$route))
+index <- sample(length(delay6$route), .7 *length(delay6$route))
 
-train <- delay.df[index,]
-test <- delay.df[-index,]
+train <- delay6[index,]
+test <- delay6[-index,]
 
 
 
-delay_Multi <- lm(delay ~ location+day+incident+direction+vehicle, data = train)
+#delay_Multi <- lm(delay ~ location+day+incident+direction+vehicle, data = train)
 
 delay_single <- lm(delay ~ incident-1, data = train)
 
@@ -227,29 +248,29 @@ relative_error_less25_pct
 
 
 
-Mechanical_mean <- mean(df3$delay[df3$incident == "Mechanical"])
+Mechanical_mean <- mean(delay6$delay[delay6$incident == "Mechanical"])
 
 Mechanical_mean
 
-Mechanical_sd <- sd(df3$delay[df3$incident == "Mechanical"])
+Mechanical_sd <- sd(delay6$delay[delay6$incident == "Mechanical"])
 
-Mechanical_var <- var(df3$delay[df3$incident == "Mechanical"])
+Mechanical_var <- var(delay6$delay[delay6$incident == "Mechanical"])
 
 
 
-Population_mean <- mean(df3$delay)
+Population_mean <- mean(delay6$delay)
 
 Population_mean
 
-Population_sd <- sd(df3$delay)
+Population_sd <- sd(delay6$delay)
 
 Population_sd
 
-Population_var <- var(df3$delay)
+Population_var <- var(delay6$delay)
 
 Population_var
 
-n <- length(df3$delay[df3$incident == "Mechanical"])
+n <- length(delay6$delay[delay6$incident == "Mechanical"])
 
 n
 
@@ -266,29 +287,12 @@ p_value
 
 # side by side histograms of whole delays and delays due to Mechanical reasons
 
-ggplot(df3, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(delay6, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
 
 
-df3_mechanical <- df3[df3$incident == "Mechanical",]
+delay6_mechanical <- delay6[delay6$incident == "Mechanical",]
 
-ggplot(df3_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
-
-
-
-
-
-
-
-
-
-Late_mean <- mean(df3$delay[df3$incident == "Investigation"])
-
-
-Delay_mean <- mean(df3$delay)
-
-Delay_sd <- sd(df3$delay)
-
-n1 <- length(df3$delay[df3$incident == "Investigation"])
+ggplot(delay6_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
 
 
 
@@ -318,3 +322,12 @@ hist(error_pred_multi)
 ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 1,alpha=3/4)
 
 summary(error_pred_multi)
+
+class(delay3$date)
+
+delay3$date <- as.POSIXct(delay3$date, format = "%D")
+
+month4 <- months.POSIXt(delay3$date, abbreviate = FALSE)
+
+
+
