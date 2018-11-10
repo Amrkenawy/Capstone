@@ -299,7 +299,8 @@ ggplot(delay6_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
 #Pearson correlation test between Delay and Gap
 
 
-cor.test(df3$delay,df3$gap, method = "pearson")
+cor.test(delay6$delay,delay6$gap, method = "pearson")
+
 
 
 delay_Multi <- lm(delay ~ incident-1+gap, data = train)
@@ -322,12 +323,6 @@ hist(error_pred_multi)
 ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 1,alpha=3/4)
 
 summary(error_pred_multi)
-
-class(delay3$date)
-
-delay3$date <- as.POSIXct(delay3$date, format = "%D")
-
-month4 <- months.POSIXt(delay3$date, abbreviate = FALSE)
 
 
 
