@@ -1,9 +1,9 @@
 ---
 title: "TTC Bus Delay Analysis using Linear Predictive Model of Delay-Causing Incidents"
 output:
-  word_document: default
-  pdf_document: default
   html_notebook: default
+  pdf_document: default
+  word_document: default
 ---
 
 
@@ -79,23 +79,49 @@ summary(delay$Incident)
 
 # Data Cleaning
 
+# Clean direction feature
+
+```{r}
+direct_fun <- function(x){
+    
+    switch(x,
+           "W/N"="WNB","w/b"="WB","b/w"="BW","w.b"="WB","w"="WB","UP"="NB","u"="NB",
+           "SS"="SB","s/d"="SB","s/b"="SB","s"="SB","Ou"="NB","W"="WB","N"="NB",
+           "S"="SB","E"="EB","n"="NB","s"="SB","e"="EB","WB"="WB","NB"="NB","SB"="SB",
+           "EB"="EB","BW"="BW","E/W"="BW","N/E"="NE","BW's"="BW","BWS"="BW","B/W's"="BW",
+           "b/ws"="BW","b/b"="BW","'N"="NB", "N & S"="BW","1w/b"="WB"
+
+    )
+}
+
+delay$Direction <- sapply(delay$Direction,direct_fun)
+
+
+```
+
+
 # Renaming the columns
 
 ```{r}
 names(delay) <- c("SrNo","date","route","time","day","location","incident","delay","gap","direction","vehicle")
 
+delay$direction <- as.character(delay$direction)
+delay$direction <- as.factor(delay$direction)
 ```
 
+# Removing "NULLs"
 
-
+```{r}
+delay <- delay[delay$direction != "NULL",]
+```
 
 # removing "NAs"
 
 ```{r}
-delay2 <- delay[which(!is.na(delay$delay)),]
+delay <- delay[which(!is.na(delay$delay)),]
 
 
-ggplot(delay2,aes(y=delay,x=incident))+geom_boxplot()
+ggplot(delay,aes(y=delay,x=incident))+geom_boxplot()
 
 ```
 
@@ -104,24 +130,22 @@ ggplot(delay2,aes(y=delay,x=incident))+geom_boxplot()
 # removing outliers
 
 ```{r}
-delay3 <- delay2[which(delay2$delay < 60 & delay2$delay > 0 ),]
+delay <- delay[which(delay$delay < 60 & delay$delay > 0 ),]
 
-head(delay3)
+head(delay)
 
-class(delay3$date)
+class(delay$date)
 
-#delay3$date <- as.Date(delay3$date, format = "%m/%d/%Y")
-
-ggplot(delay3,aes(y=delay,x=incident))+geom_boxplot()
+ggplot(delay,aes(y=delay,x=incident))+geom_boxplot()
 
 
-aggregate(delay ~ incident, data = delay3, mean)
+aggregate(delay ~ incident, data = delay, mean)
 
-aggregate(delay ~ incident, data = delay3, var)
+aggregate(delay ~ incident, data = delay, var)
 
-ggplot(delay3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
 
-ggplot(delay3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
 
 ```
 
@@ -130,12 +154,12 @@ ggplot(delay3, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/
 # Analysis of Variance "ANOVA" using linear regression coefficient
 
 ```{r}
-delay3.lm <- lm(delay ~ incident, data = delay3)
-summary(delay3.lm)
+delay.lm <- lm(delay ~ incident, data = delay)
+summary(delay.lm)
 
 
-delay3.lm2 <- lm(delay ~ incident-1, data = delay3)
-summary(delay3.lm2)
+delay.lm2 <- lm(delay ~ incident-1, data = delay)
+summary(delay.lm2)
 
 ```
 
@@ -143,10 +167,10 @@ summary(delay3.lm2)
 # Plot linear regression coefficient
 
 ```{r}
-coefplot(delay3.lm)
+coefplot(delay.lm)
 
 
-coefplot(delay3.lm2)
+coefplot(delay.lm2)
 
 ```
 
@@ -155,10 +179,10 @@ coefplot(delay3.lm2)
 # Consider the interaction with the day of incident
 
 ```{r}
-delay3.lm3 <- lm(delay ~ incident * day, data = delay3)
-summary(delay3.lm3)
+delay.lm3 <- lm(delay ~ incident * day, data = delay)
+summary(delay.lm3)
 
-coefplot(delay3.lm3)
+coefplot(delay.lm3)
 
 ```
 
@@ -167,7 +191,7 @@ coefplot(delay3.lm3)
 # Studying monthly distribution of the delay
 
 ```{r}
-month.col <- str_sub(delay3$date,start = 6, end = 7)
+month.col <- str_sub(delay$date,start = 6, end = 7)
 
 month.name <- function(x){
     
@@ -190,16 +214,16 @@ month.name <- function(x){
 
 month.names <- sapply(month.col, month.name)
 
-delay4 <- data.frame(delay3,month.names)
+delay <- data.frame(delay,month.names)
 
-ggplot(delay4, aes(x= delay,fill=month.names))+geom_histogram(binwidth =1,alpha=3/4)+facet_wrap(~month.names)
+ggplot(delay, aes(x= delay,fill=month.names))+geom_histogram(binwidth =3,alpha=3/4)+facet_wrap(~month.names)
 
 
-yearly <- str_sub(delay4$date,start = 1, end = 4)
+yearly <- str_sub(delay$date,start = 1, end = 4)
 
-delay5 <- data.frame(delay4,yearly)
+delay <- data.frame(delay,yearly)
 
-ggplot(delay5, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~yearly)
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 3,alpha=3/4)+facet_wrap(~yearly)
 
 season <- function(x){
     
@@ -221,34 +245,15 @@ season <- function(x){
 }
 season.names <- sapply(month.col, season)
 
-delay6 <- data.frame(delay5,season.names)
+delay <- data.frame(delay,season.names)
 
-ggplot(delay6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~season.names)+theme(legend.position = "top")
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 3,alpha=3/4)+facet_wrap(~season.names)+theme(legend.position = "top")
 
-ggplot(delay6, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~yearly+season.names)
-
-```
-
-
-
-
-# Analyze Incidents per location
-
-```{r}
-delay6$location <- as.factor(delay6$location)
-
-#levels(delay6$location)
-
-location2 <- aggregate(incident ~ location, delay6 ,length)
-location3 <- location2[order(-location2$incident),]
-summary(location3)
-
-quantile(location3$incident, probs = .995)
-
-length(location3$incident[location3$incident > 1000])
-
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 3,alpha=3/4)+facet_wrap(~yearly+season.names)
 
 ```
+
+
 
 
 
@@ -256,10 +261,11 @@ length(location3$incident[location3$incident > 1000])
 # Create a prediction model for the delay through linear regression
 
 ```{r}
-index <- sample(length(delay6$route), .7 *length(delay6$route))
 
-train <- delay6[index,]
-test <- delay6[-index,]
+index <- sample(length(delay$route), .7 *length(delay$route))
+
+train <- delay[index,]
+test <- delay[-index,]
 
 
 delay_single <- lm(delay ~ incident-1, data = train)
@@ -280,7 +286,7 @@ head(error)
 
 hist(error_pred)
 
-ggplot(error,aes(x=error_pred))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(error,aes(x=error_pred))+geom_histogram(binwidth = 3,alpha=3/4)
 
 summary(error_pred)
 
@@ -302,29 +308,29 @@ relative_error_less25_pct
 # Hypothesis: delays due to "Mechanical" incidents has no significant difference from delays caused by "All incidents"
 
 ```{r}
-Mechanical_mean <- mean(delay6$delay[delay6$incident == "Mechanical"])
+Mechanical_mean <- mean(delay$delay[delay$incident == "Mechanical"])
 
 Mechanical_mean
 
-Mechanical_sd <- sd(delay6$delay[delay6$incident == "Mechanical"])
+Mechanical_sd <- sd(delay$delay[delay$incident == "Mechanical"])
 
-Mechanical_var <- var(delay6$delay[delay6$incident == "Mechanical"])
+Mechanical_var <- var(delay$delay[delay$incident == "Mechanical"])
 
 
 
-Population_mean <- mean(delay6$delay)
+Population_mean <- mean(delay$delay)
 
 Population_mean
 
-Population_sd <- sd(delay6$delay)
+Population_sd <- sd(delay$delay)
 
 Population_sd
 
-Population_var <- var(delay6$delay)
+Population_var <- var(delay$delay)
 
 Population_var
 
-n <- length(delay6$delay[delay6$incident == "Mechanical"])
+n <- length(delay$delay[delay$incident == "Mechanical"])
 
 n
 
@@ -346,12 +352,12 @@ p_value
 # side by side histograms of whole delays and delays due to Mechanical reasons
 
 ```{r}
-ggplot(delay6, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(delay, aes(x=delay))+geom_histogram(binwidth = 3,alpha=3/4)
 
 
-delay6_mechanical <- delay6[delay6$incident == "Mechanical",]
+delay_mechanical <- delay[delay$incident == "Mechanical",]
 
-ggplot(delay6_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(delay_mechanical, aes(x=delay))+geom_histogram(binwidth = 3,alpha=3/4)
 
 ```
 
@@ -362,7 +368,7 @@ ggplot(delay6_mechanical, aes(x=delay))+geom_histogram(binwidth = 1,alpha=3/4)
 # Pearson correlation test between Delay and Gap
 
 ```{r}
-cor.test(delay6$delay,delay6$gap, method = "pearson")
+cor.test(delay$delay,delay$gap, method = "pearson")
 
 
 
@@ -383,14 +389,108 @@ head(error_multi)
 
 hist(error_pred_multi)
 
-ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 1,alpha=3/4)
+ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 3,alpha=3/4)
 
 summary(error_pred_multi)
+
+mse_multi <- sqrt(sum((error_pred_multi)^2)/nrow(test))
+
+mse_multi
+
+```
+
+
+# study Multi regression cosidering "direction" attribute
+
+```{r}
+
+delay_Multi.direction <- lm(delay ~ incident-1+direction, data = train)
+
+summary(delay_Multi.direction)
+
+
+
+
+delay_pred.direction <- predict(delay_Multi.direction, newdata = test, interval = "prediction")
+
+pred_Multi.direction <- data.frame(delay_pred)
+
+error_pred_multi.direction <- pred_Multi.direction$fit - test$delay
+
+error_multi.direction <- data.frame(error_pred_multi.direction)
+head(error_multi.direction)
+
+hist(error_pred_multi.direction)
+
+ggplot(error_multi.direction,aes(x=error_pred_multi))+geom_histogram(binwidth = 3,alpha=3/4)
+
+summary(error_pred_multi.direction)
+
+mse_multi.direction <- sqrt(sum((error_multi.direction)^2)/nrow(test))
+
+mse_multi.direction
 
 ```
 
 
 
+# Create a prediction model for the delay through regression tree
+# consider "incident" feature 
 
+```{r}
+tree_model <- tree(delay ~ incident, data = test)
+plot(tree_model)
+text(tree_model)
+
+class(delay6$direction)
+levels(delay6$direction)
+
+delay_pred_tree <- predict(tree_model, newdata = test, interval = "prediction")
+
+pred_tree <- data.frame(delay_pred_tree)
+
+error_pred_tree <- pred_tree - test$delay
+
+error_tree <- data.frame(error_pred_tree)
+head(error_tree)
+
+hist(error_pred_multi)
+
+mse_tree <- sqrt(sum((error_tree)^2)/nrow(test))
+
+mse_tree
+
+```
+
+# Create a prediction model for the delay through regression tree
+# consider "incident" & "direction" features
+
+
+```{r}
+tree_model_multi <- tree(delay ~ incident+direction, data = test)
+plot(tree_model_multi)
+text(tree_model_multi)
+
+class(delay6$direction)
+levels(delay6$direction)
+
+delay_pred_tree_multi <- predict(tree_model_multi, newdata = test, interval = "prediction")
+
+pred_tree_multi <- data.frame(delay_pred_tree_multi)
+
+error_pred_tree_multi <- pred_tree_multi - test$delay
+
+error_tree_multi <- data.frame(error_pred_tree_multi)
+head(error_tree_multi)
+
+hist(error_pred_multi)
+
+
+mse_tree_multi <- sqrt(sum((error_tree_multi)^2)/nrow(test))
+
+mse_tree_multi
+
+
+```
 
 
