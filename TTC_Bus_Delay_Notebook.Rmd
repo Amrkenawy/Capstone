@@ -1,9 +1,11 @@
 ---
 title: "TTC Bus Delay Analysis using Linear Predictive Model of Delay-Causing Incidents"
 output:
-  html_notebook: default
-  pdf_document: default
   word_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
 
 
@@ -14,6 +16,9 @@ library(readxl)
 library(stringr)
 library(ggplot2)
 require(coefplot)
+library(tree)
+library(rpart)
+library(caret)
 ```
 
 # Create one dataframe for the entire worksheet
@@ -143,9 +148,9 @@ aggregate(delay ~ incident, data = delay, mean)
 
 aggregate(delay ~ incident, data = delay, var)
 
-ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 3,alpha=3/4)+facet_wrap(~incident)
 
-ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 1,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
+ggplot(delay, aes(x= delay,fill=incident))+geom_histogram(binwidth = 3,alpha=3/4)+facet_wrap(~incident)+theme(legend.position = "top")
 
 ```
 
@@ -368,34 +373,41 @@ ggplot(delay_mechanical, aes(x=delay))+geom_histogram(binwidth = 3,alpha=3/4)
 # Pearson correlation test between Delay and Gap
 
 ```{r}
-cor.test(delay$delay,delay$gap, method = "pearson")
+delay.gap <- delay[!is.na(delay$gap), ]
+
+cor.test(delay.gap$delay,delay.gap$gap, method = "pearson")
+
+index.gap <- sample(length(delay.gap$route), .7 *length(delay.gap$route))
+
+train.gap <- delay.gap[index.gap,]
+test.gap <- delay.gap[-index.gap,]
+
+delay_Multi.gap <- lm(delay ~ incident-1+gap, data = train.gap)
+
+summary(delay_Multi.gap)
 
 
 
-delay_Multi <- lm(delay ~ incident-1+gap, data = train)
+delay_pred.gap <- predict(delay_Multi.gap, newdata = test.gap, interval = "prediction")
 
-summary(delay_Multi)
+pred_Multi.gap <- data.frame(delay_pred.gap)
 
+error_pred_multi.gap <- pred_Multi.gap$fit - test.gap$delay
 
+error_multi.gap <- data.frame(error_pred_multi.gap)
+head(error_multi.gap)
 
-delay_pred <- predict(delay_Multi, newdata = test, interval = "prediction")
+sum(is.na(train.gap$gap))
 
-pred_Multi <- data.frame(delay_pred)
+hist(error_pred_multi.gap)
 
-error_pred_multi <- pred_Multi$fit - test$delay
+ggplot(error_multi.gap,aes(x=error_pred_multi.gap))+geom_histogram(binwidth = 3,alpha=3/4)
 
-error_multi <- data.frame(error_pred_multi)
-head(error_multi)
+summary(error_pred_multi.gap)
 
-hist(error_pred_multi)
+mse_multi.gap <- sqrt(sum((error_pred_multi.gap)^2)/nrow(test.gap))
 
-ggplot(error_multi,aes(x=error_pred_multi))+geom_histogram(binwidth = 3,alpha=3/4)
-
-summary(error_pred_multi)
-
-mse_multi <- sqrt(sum((error_pred_multi)^2)/nrow(test))
-
-mse_multi
+mse_multi.gap
 
 ```
 
@@ -413,7 +425,7 @@ summary(delay_Multi.direction)
 
 delay_pred.direction <- predict(delay_Multi.direction, newdata = test, interval = "prediction")
 
-pred_Multi.direction <- data.frame(delay_pred)
+pred_Multi.direction <- data.frame(delay_pred.direction)
 
 error_pred_multi.direction <- pred_Multi.direction$fit - test$delay
 
@@ -422,9 +434,7 @@ head(error_multi.direction)
 
 hist(error_pred_multi.direction)
 
-ggplot(error_multi.direction,aes(x=error_pred_multi))+geom_histogram(binwidth = 3,alpha=3/4)
-
-summary(error_pred_multi.direction)
+ggplot(error_multi.direction,aes(x=error_pred_multi.direction))+geom_histogram(binwidth = 3,alpha=3/4)
 
 mse_multi.direction <- sqrt(sum((error_multi.direction)^2)/nrow(test))
 
@@ -432,6 +442,40 @@ mse_multi.direction
 
 ```
 
+
+
+
+# Consider "gap" & "direction" features
+
+```{r}
+
+delay_Multi.gap_direction <- lm(delay ~ incident-1+gap+direction, data = train.gap)
+
+summary(delay_Multi.gap_direction)
+
+
+
+delay_pred.gap_direction <- predict(delay_Multi.gap_direction, newdata = test.gap, interval = "prediction")
+
+pred_Multi.gap_direction <- data.frame(delay_pred.gap_direction)
+
+error_pred_multi.gap_direction <- pred_Multi.gap_direction$fit - test.gap$delay
+
+error_multi.gap_direction <- data.frame(error_pred_multi.gap_direction)
+head(error_multi.gap_direction)
+
+
+hist(error_pred_multi.gap_direction)
+
+ggplot(error_multi.gap_direction,aes(x=error_pred_multi.gap_direction))+geom_histogram(binwidth = 3,alpha=3/4)
+
+summary(error_pred_multi.gap_direction)
+
+mse_multi.gap_direction <- sqrt(sum((error_pred_multi.gap_direction)^2)/nrow(test.gap))
+
+mse_multi.gap_direction
+
+```
 
 
 # Create a prediction model for the delay through regression tree
@@ -442,19 +486,20 @@ tree_model <- tree(delay ~ incident, data = test)
 plot(tree_model)
 text(tree_model)
 
-class(delay6$direction)
-levels(delay6$direction)
+class(delay$direction)
+levels(delay$direction)
 
 delay_pred_tree <- predict(tree_model, newdata = test, interval = "prediction")
 
 pred_tree <- data.frame(delay_pred_tree)
 
-error_pred_tree <- pred_tree - test$delay
+error_pred_tree <- pred_tree$delay_pred_tree - test$delay
 
 error_tree <- data.frame(error_pred_tree)
 head(error_tree)
 
-hist(error_pred_multi)
+hist(error_pred_tree)
+
 
 mse_tree <- sqrt(sum((error_tree)^2)/nrow(test))
 
@@ -471,19 +516,16 @@ tree_model_multi <- tree(delay ~ incident+direction, data = test)
 plot(tree_model_multi)
 text(tree_model_multi)
 
-class(delay6$direction)
-levels(delay6$direction)
-
 delay_pred_tree_multi <- predict(tree_model_multi, newdata = test, interval = "prediction")
 
 pred_tree_multi <- data.frame(delay_pred_tree_multi)
 
-error_pred_tree_multi <- pred_tree_multi - test$delay
+error_pred_tree_multi <- pred_tree_multi$delay_pred_tree_multi - test$delay
 
 error_tree_multi <- data.frame(error_pred_tree_multi)
 head(error_tree_multi)
 
-hist(error_pred_multi)
+hist(error_pred_tree_multi)
 
 
 mse_tree_multi <- sqrt(sum((error_tree_multi)^2)/nrow(test))
@@ -494,3 +536,110 @@ mse_tree_multi
 ```
 
 
+# Create a prediction model for the delay through regression tree
+# consider "incident", "gap" features
+
+
+```{r}
+tree_model_multi.gap <- tree(delay ~ incident+gap, data = test.gap)
+plot(tree_model_multi.gap)
+text(tree_model_multi.gap)
+
+delay_pred_tree_multi.gap <- predict(tree_model_multi.gap, newdata = test.gap, interval = "prediction")
+
+pred_tree_multi.gap <- data.frame(delay_pred_tree_multi.gap)
+
+error_pred_tree_multi.gap <- pred_tree_multi.gap$delay_pred_tree_multi.gap - test.gap$delay
+
+error_tree_multi.gap <- data.frame(error_pred_tree_multi.gap)
+head(error_tree_multi.gap)
+
+hist(error_pred_tree_multi.gap)
+
+
+mse_tree_multi.gap <- sqrt(sum((error_tree_multi.gap)^2)/nrow(test.gap))
+
+mse_tree_multi.gap
+
+
+```
+
+
+# Cross Validation 10 folds
+
+# using incidents and directions
+
+```{r}
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+model <- train(delay ~ incident+direction, data = delay, method = "lm", trControl = train.control)
+# Summarize the results
+print(model)
+
+```
+
+# Cross Validation 10 folds
+
+# using incidents
+
+```{r}
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "repeatedcv", number = 10,repeats = 3)
+# Train the model
+model <- train(delay ~ incident, data = delay, method = "lm", trControl = train.control)
+# Summarize the results
+print(model)
+
+```
+
+
+# Cross Validation 10 folds
+
+# using incidents and gap
+
+```{r}
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "repeatedcv", number = 10,repeats = 3)
+# Train the model
+model <- train(delay ~ incident+gap, data = delay.gap, method = "lm", trControl = train.control)
+# Summarize the results
+print(model)
+
+```
+
+
+# Cross Validation 3 folds
+
+# using incidents
+
+```{r}
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 3)
+# Train the model
+model <- train(delay ~ incident, data = delay, method = "M5", trControl = train.control)
+# Summarize the results
+print(model)
+
+```
+
+
+
+# Cross Validation 3 folds
+
+# using incidents
+
+```{r}
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 3)
+# Train the model
+model.gap <- train(delay ~ incident+gap, data = delay.gap, method = "M5", trControl = train.control)
+# Summarize the results
+print(model.gap)
+
+```
